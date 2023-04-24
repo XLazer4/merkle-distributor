@@ -118,26 +118,26 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         _;
     }
 
-    function getCurrentMerkleData() external view returns (MerkleData memory) {
-        return
-            MerkleData(merkleRoot, merkleContentHash, lastPublishTimestamp, lastPublishBlockNumber, lastPublishStartBlock, lastPublishEndBlock);
+    function getCurrentMerkleData() external view returns (MerkleData memory data) {
+        data = MerkleData(merkleRoot, merkleContentHash, lastPublishTimestamp, lastPublishBlockNumber, lastPublishStartBlock, lastPublishEndBlock);
     }
 
-    function getPendingMerkleData() external view returns (MerkleData memory) {
-        return
-            MerkleData(
-                pendingMerkleRoot,
-                pendingMerkleContentHash,
-                lastProposeTimestamp,
-                lastProposeBlockNumber,
-                lastProposeStartBlock,
-                lastProposeEndBlock
-            );
+    function getPendingMerkleData() external view returns (MerkleData memory data) {
+        data = MerkleData(
+            pendingMerkleRoot,
+            pendingMerkleContentHash,
+            lastProposeTimestamp,
+            lastProposeBlockNumber,
+            lastProposeStartBlock,
+            lastProposeEndBlock
+        );
     }
 
-    function hasPendingRoot() external view returns (bool) {
-        return pendingCycle == currentCycle + 1;
+
+    function hasPendingRoot() external view returns (bool result) {
+        result = pendingCycle == currentCycle + 1;
     }
+
 
     /// @dev Return true if account has outstanding claims in any token from the given input data
     function isClaimAvailableFor(
@@ -159,21 +159,23 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         bytes32 user,
         address[] calldata tokens,
         uint256[] calldata cumulativeAmounts
-    ) public view returns (address[] memory, uint256[] memory) {
-        uint256[] memory userClaimable = new uint256[](tokens.length);
+    ) public view returns (address[] memory outTokens, uint256[] memory outUserClaimable) {
+        outUserClaimable = new uint256[](tokens.length);
         for (uint256 i = 0; i < tokens.length; i++) {
-            userClaimable[i] = cumulativeAmounts[i] - claimed[user][tokens[i]];
+            outUserClaimable[i] = cumulativeAmounts[i] - claimed[user][tokens[i]];
         }
-        return (tokens, userClaimable);
+        outTokens = tokens;
     }
 
-    function getClaimedFor(bytes32 user, address[] calldata tokens) public view returns (address[] memory, uint256[] memory) {
-        uint256[] memory userClaimed = new uint256[](tokens.length);
+
+    function getClaimedFor(bytes32 user, address[] calldata tokens) public view returns (address[] memory outTokens, uint256[] memory outUserClaimed) {
+        outUserClaimed = new uint256[](tokens.length);
         for (uint256 i = 0; i < tokens.length; i++) {
-            userClaimed[i] = claimed[user][tokens[i]];
+            outUserClaimed[i] = claimed[user][tokens[i]];
         }
-        return (tokens, userClaimed);
+        outTokens = tokens;
     }
+
 
     function encodeClaim(
         address[] calldata tokens,
@@ -194,11 +196,12 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         uint256 index,
         uint256 cycle,
         bytes32[] calldata merkleProof
-    ) public whenNotPaused returns (uint256[] memory) {
+    ) public whenNotPaused returns (uint256[] memory outClaimed) {
         (,uint256[] memory claimable) = getClaimableFor(user, tokens, cumulativeAmounts);
 
-        return claim(user, tokens, cumulativeAmounts, index, cycle, merkleProof, claimable);
+        outClaimed = claim(user, tokens, cumulativeAmounts, index, cycle, merkleProof, claimable);
     }
+
 
     /// @notice Claim accumulated rewards for a set of tokens at a given cycle number
     function claim(
@@ -209,7 +212,7 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         uint256 cycle,
         bytes32[] memory merkleProof,
         uint256[] memory amountsToClaim
-    ) public whenNotPaused returns (uint256[] memory) {
+    ) public whenNotPaused returns (uint256[] memory outAmountsClaimed) {
         if (cycle != currentCycle) 
             revert InvalidCycle(cycle, currentCycle);
 
@@ -226,14 +229,13 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
             userAddress = evmAccounts.getEvmAddress(user);
         }
 
-        uint256[] memory amountsClaimed = new uint256[](tokens.length);
+        outAmountsClaimed = new uint256[](tokens.length);
         // Claim each token
         for (uint256 i = 0; i < tokens.length; i++) {
-            amountsClaimed[i] = _tryClaim(cycle, user, userAddress, tokens[i], cumulativeAmounts[i], amountsToClaim[i]);
+            outAmountsClaimed[i] = _tryClaim(cycle, user, userAddress, tokens[i], cumulativeAmounts[i], amountsToClaim[i]);
         }
-
-        return amountsClaimed;
     }
+
 
     function _tryClaim(uint256 cycle, bytes32 user, address userAddress, address token, uint256 cumulative, uint256 amountToClaim) internal returns (uint256) {
         // If none claimable for token, skip
