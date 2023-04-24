@@ -318,7 +318,8 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
 
     function withdraw(address _token, uint256 _amount) public {
         _onlyAdmin();
-        IERC20Upgradeable(_token).transfer(msg.sender, _amount);
+        bool success = IERC20Upgradeable(_token).transfer(msg.sender, _amount);
+        require(success, "Transfer failed");
     }
 
     /// @notice Pause publishing of new roots
