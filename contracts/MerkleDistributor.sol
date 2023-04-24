@@ -75,25 +75,30 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
     /// ===== Modifiers =====
 
     /// @notice Admins can approve new root updaters or admins
-    function _onlyAdmin() internal view {
+    modifier _onlyAdmin() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "onlyAdmin");
+        _;
     }
 
     /// @notice Root updaters can update the root
-    function _onlyRootProposer() internal view {
+    modifier _onlyRootProposer() {
         require(hasRole(ROOT_PROPOSER_ROLE, msg.sender), "onlyRootProposer");
+        _;
     }
 
-    function _onlyRootValidator() internal view {
+    modifier _onlyRootValidator() {
         require(hasRole(ROOT_VALIDATOR_ROLE, msg.sender), "onlyRootValidator");
+        _;
     }
 
-    function _onlyPauser() internal view {
+    modifier _onlyPauser() {
         require(hasRole(PAUSER_ROLE, msg.sender), "onlyPauser");
+        _;
     }
 
-    function _onlyUnpauser() internal view {
+    modifier _onlyUnpauser() {
         require(hasRole(UNPAUSER_ROLE, msg.sender), "onlyUnpauser");
+        _;
     }
 
     function getCurrentMerkleData() external view returns (MerkleData memory) {
@@ -261,8 +266,7 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         uint256 cycle,
         uint256 startBlock,
         uint256 endBlock
-    ) external whenNotPaused {
-        _onlyRootProposer();
+    ) external whenNotPaused _onlyRootProposer {
         require(cycle == currentCycle + 1, "Incorrect cycle");
 
         pendingCycle = cycle;
@@ -286,8 +290,7 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         uint256 cycle,
         uint256 startBlock,
         uint256 endBlock
-    ) external whenNotPaused {
-        _onlyRootValidator();
+    ) external whenNotPaused _onlyRootValidator {
         require(root == pendingMerkleRoot, "Incorrect root");
         require(contentHash == pendingMerkleContentHash, "Incorrect content hash");
         require(cycle == pendingCycle, "Incorrect cycle");
@@ -316,21 +319,18 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         emit RootUpdated(currentCycle, root, contentHash, startBlock, endBlock, block.timestamp, block.number);
     }
 
-    function withdraw(address _token, uint256 _amount) public {
-        _onlyAdmin();
+    function withdraw(address _token, uint256 _amount) _onlyAdmin public {
         bool success = IERC20Upgradeable(_token).transfer(msg.sender, _amount);
         require(success, "Transfer failed");
     }
 
     /// @notice Pause publishing of new roots
-    function pause() external {
-        _onlyPauser();
+    function pause() _onlyPauser external {
         _pause();
     }
 
     /// @notice Unpause publishing of new roots
-    function unpause() external {
-        _onlyUnpauser();
+    function unpause() _onlyUnpauser external {
         _unpause();
     }
 }
