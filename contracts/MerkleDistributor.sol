@@ -32,15 +32,14 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant UNPAUSER_ROLE = keccak256("UNPAUSER_ROLE");
 
-    uint256 public currentCycle;
     bytes32 public merkleRoot;
+    bytes32 public pendingMerkleRoot;
     bytes32 public merkleContentHash;
+    bytes32 public pendingMerkleContentHash;
+    uint256 public currentCycle;
+    uint256 public pendingCycle;
     uint256 public lastPublishTimestamp;
     uint256 public lastPublishBlockNumber;
-
-    uint256 public pendingCycle;
-    bytes32 public pendingMerkleRoot;
-    bytes32 public pendingMerkleContentHash;
     uint256 public lastProposeTimestamp;
     uint256 public lastProposeBlockNumber;
 
