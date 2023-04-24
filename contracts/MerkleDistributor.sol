@@ -3,6 +3,7 @@
 pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
@@ -26,6 +27,8 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         uint256 startBlock;
         uint256 endBlock;
     }
+
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     bytes32 public constant ROOT_PROPOSER_ROLE = keccak256("ROOT_PROPOSER_ROLE");
     bytes32 public constant ROOT_VALIDATOR_ROLE = keccak256("ROOT_VALIDATOR_ROLE");
@@ -318,8 +321,7 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
     }
 
     function withdraw(address _token, uint256 _amount) _onlyAdmin public {
-        bool success = IERC20Upgradeable(_token).transfer(msg.sender, _amount);
-        require(success, "Transfer failed");
+        IERC20Upgradeable(_token).safeTransfer(msg.sender, _amount);
     }
 
     /// @notice Pause publishing of new roots
