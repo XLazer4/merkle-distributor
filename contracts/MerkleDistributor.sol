@@ -120,8 +120,8 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
     /// @dev Return true if account has outstanding claims in any token from the given input data
     function isClaimAvailableFor(
         bytes32 user,
-        address[] memory tokens,
-        uint256[] memory cumulativeAmounts
+        address[] calldata tokens,
+        uint256[] calldata cumulativeAmounts
     ) public view returns (bool) {
         for (uint256 i = 0; i < tokens.length; i++) {
             uint256 userClaimable = cumulativeAmounts[i] - claimed[user][tokens[i]];
@@ -135,8 +135,8 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
     /// @dev Get the number of tokens claimable for an account, given a list of tokens and latest cumulativeAmounts data
     function getClaimableFor(
         bytes32 user,
-        address[] memory tokens,
-        uint256[] memory cumulativeAmounts
+        address[] calldata tokens,
+        uint256[] calldata cumulativeAmounts
     ) public view returns (address[] memory, uint256[] memory) {
         uint256[] memory userClaimable = new uint256[](tokens.length);
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -145,7 +145,7 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         return (tokens, userClaimable);
     }
 
-    function getClaimedFor(bytes32 user, address[] memory tokens) public view returns (address[] memory, uint256[] memory) {
+    function getClaimedFor(bytes32 user, address[] calldata tokens) public view returns (address[] memory, uint256[] memory) {
         uint256[] memory userClaimed = new uint256[](tokens.length);
         for (uint256 i = 0; i < tokens.length; i++) {
             userClaimed[i] = claimed[user][tokens[i]];
@@ -167,11 +167,11 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
     /// @notice Claim accumulated rewards for a set of tokens at a given cycle number
     function claim(
         bytes32 user,
-        address[] memory tokens,
-        uint256[] memory cumulativeAmounts,
+        address[] calldata tokens,
+        uint256[] calldata cumulativeAmounts,
         uint256 index,
         uint256 cycle,
-        bytes32[] memory merkleProof
+        bytes32[] calldata merkleProof
     ) public whenNotPaused returns (uint256[] memory) {
         (,uint256[] memory claimable) = getClaimableFor(user, tokens, cumulativeAmounts);
 
