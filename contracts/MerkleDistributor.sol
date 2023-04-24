@@ -9,8 +9,21 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 import "@acala-network/contracts/evm-accounts/IEVMAccounts.sol";
 import "@acala-network/contracts/utils/Address.sol";
-
 import "./IMerkleDistributor.sol";
+
+//Custom Errors
+error OnlyAdmin();
+error OnlyRootProposer();
+error OnlyRootValidator();
+error OnlyPauser();
+error OnlyUnpauser();
+error InvalidCycle(uint256 cycle, uint256 providedCycle);
+error InvalidProof();
+error FailedClaim(bytes32 user);
+error IncorrectRoot(bytes32 root, bytes32 pendingMerkleRoot);
+error IncorrectContentHash(bytes32 contentHash, bytes32 pendingMerkleContentHash);
+error IncorrectCycleStartBlock(uint256 startBlock, uint256 lastProposeStartBlock);
+error IncorrectCycleEndBlock(uint256 endBlock, uint256 lastProposeEndBlock);
 
 /**
  * @title Merkle Distributor
@@ -75,30 +88,33 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
 
     /// ===== Modifiers =====
 
-    /// @notice Admins can approve new root updaters or admins
     modifier _onlyAdmin() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "onlyAdmin");
+        if (!hasRole(DEFAULT_ADMIN_ROLE, msg.sender))
+            revert OnlyAdmin();
         _;
     }
-
     /// @notice Root updaters can update the root
     modifier _onlyRootProposer() {
-        require(hasRole(ROOT_PROPOSER_ROLE, msg.sender), "onlyRootProposer");
+        if (!hasRole(ROOT_PROPOSER_ROLE, msg.sender))
+            revert OnlyRootProposer();
         _;
     }
 
     modifier _onlyRootValidator() {
-        require(hasRole(ROOT_VALIDATOR_ROLE, msg.sender), "onlyRootValidator");
+        if (!hasRole(ROOT_VALIDATOR_ROLE, msg.sender))
+            revert OnlyRootValidator();
         _;
     }
 
     modifier _onlyPauser() {
-        require(hasRole(PAUSER_ROLE, msg.sender), "onlyPauser");
+        if (!hasRole(PAUSER_ROLE, msg.sender))
+            revert OnlyPauser();
         _;
     }
 
     modifier _onlyUnpauser() {
-        require(hasRole(UNPAUSER_ROLE, msg.sender), "onlyUnpauser");
+        if (!hasRole(UNPAUSER_ROLE, msg.sender))
+            revert OnlyUnpauser();
         _;
     }
 
@@ -194,16 +210,19 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         bytes32[] memory merkleProof,
         uint256[] memory amountsToClaim
     ) public whenNotPaused returns (uint256[] memory) {
-        require(cycle == currentCycle, "Invalid cycle");
+        if (cycle != currentCycle) 
+            revert InvalidCycle(cycle, currentCycle);
 
         // Verify the merkle proof.
         bytes32 node = keccak256(abi.encode(index, user, cycle, tokens, cumulativeAmounts));
-        require(MerkleProofUpgradeable.verify(merkleProof, merkleRoot, node), "Invalid proof");
+        if (!MerkleProofUpgradeable.verify(merkleProof, merkleRoot, node))
+            revert InvalidProof();
 
         IEVMAccounts evmAccounts = IEVMAccounts(ADDRESS.EVMAccounts);
         address userAddress = evmAccounts.getEvmAddress(user);
         if (userAddress == address(0x0)) {
-            require(evmAccounts.claimDefaultEvmAddress(user), "Claim failed");
+            if (!evmAccounts.claimDefaultEvmAddress(user))
+                revert FailedClaim(user);
             userAddress = evmAccounts.getEvmAddress(user);
         }
 
@@ -268,7 +287,8 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         uint256 startBlock,
         uint256 endBlock
     ) external whenNotPaused _onlyRootProposer {
-        require(cycle == currentCycle + 1, "Incorrect cycle");
+        if (cycle != currentCycle + 1) 
+            revert InvalidCycle(cycle, currentCycle);
 
         pendingCycle = cycle;
         pendingMerkleRoot = root;
@@ -292,12 +312,20 @@ contract MerkleDistributor is ADDRESS, Initializable, AccessControlUpgradeable, 
         uint256 startBlock,
         uint256 endBlock
     ) external whenNotPaused _onlyRootValidator {
-        require(root == pendingMerkleRoot, "Incorrect root");
-        require(contentHash == pendingMerkleContentHash, "Incorrect content hash");
-        require(cycle == pendingCycle, "Incorrect cycle");
+        if (root != pendingMerkleRoot) 
+            revert IncorrectRoot(root, pendingMerkleRoot);
 
-        require(startBlock == lastProposeStartBlock, "Incorrect cycle start block");
-        require(endBlock == lastProposeEndBlock, "Incorrect cycle end block");
+        if (contentHash != pendingMerkleContentHash) 
+            revert IncorrectContentHash(contentHash, pendingMerkleContentHash);
+
+        if (cycle != pendingCycle) 
+            revert InvalidCycle(cycle, pendingCycle);
+
+        if (startBlock != lastProposeStartBlock) 
+            revert IncorrectCycleStartBlock(startBlock, lastProposeStartBlock);
+
+        if (endBlock != lastProposeEndBlock) 
+            revert IncorrectCycleEndBlock(endBlock, lastProposeEndBlock);
 
         currentCycle = cycle;
         merkleRoot = root;
